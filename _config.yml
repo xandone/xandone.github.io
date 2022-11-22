@@ -1,7 +1,7 @@
 # Setup
-title: Not Pure Poole
-description: A simple, beautiful, and powerful Jekyll theme for blogs
-url: https://vszhub.github.io
+title: xandone
+description: Personal Blog
+url: https://xandone.github.io/
 avatar: /avatar.jpg
 paginate: 5
 permalink: pretty
@@ -35,8 +35,7 @@ logo: logo.png
 social:
   name: Songzi Vong
   links:
-    - https://twitter.com/vszhub
-    - https://github.com/vszhub
+    - https://github.com/xandone
 google_site_verification: xxxxx
 lang: en
 
@@ -54,6 +53,6 @@ sass:
 
 # Specify the author for blog posts
 author:
-  name: Songzi Vong
-  url: https://github.com/vszhub/
-  email: vszhub@gmail.com
+  name: xandone
+  url: https://github.com/xandone
+  email: 765478955@qq.com.com
