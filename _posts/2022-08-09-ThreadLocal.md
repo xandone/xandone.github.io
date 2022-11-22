@@ -5,7 +5,8 @@ date: 2022-08-09 10:47:23
 tags: [编程]
 toc:  true
 ---
-简单的分析一下 ThreadLocal1.ThreadLocal可以做到数据的非显性赋值，且数据在线程之间是相互隔离的。  
+简单的分析一下 ThreadLocal1.ThreadLocal可以做到数据的非显性赋值，且数据在线程之间是相互隔离的。
+  
 怎么做到的呢，其实原理很简单：给每个线程"绑定"各自的数据(多数情况就是new一个新的对象)。  
 简单的讲就是(伪代码)：  
 ```java
@@ -31,7 +32,7 @@ ThreadLocalMap中的Entry为什么被定义成数组？
 Entry的key为什么需要定义成弱引用？  
 假设key是强引用，那么：把ThreadLocal引用置为空(=null)的时候，Entry的key依然持有ThreadLocal对象的强引用，那么这个ThreadLocal不会销毁。这种情况下怎么才能销毁对应的Entry对象呢？我认为只能在ThreadLocal置为空的同时，也把对应的Entry置为空，两者同步进行。  
 key是弱引用：那么把ThreadLocal引用置为空后，系统gc后，由于对应的Entry的key是弱引用，所以ThreadLocal对象被销毁，此时的Entry应该变成了Entry(null,value)，那value什么时候销毁呢，因为key是null，value已经没有存在的意义。这里，每次使用ThreadLocal.set/get，系统都会调用以下方法销毁key==null的value  
-```Java
+```java
 expungeStaleEntry(int staleSlot)
 ```
 既然强引用的情况也能达到销毁Entry的目的，为啥还要设计成弱引用，我觉得设计者的考虑是：  
