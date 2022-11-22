@@ -35,7 +35,7 @@ logo: logo.png
 social:
   name: Songzi Vong
   links:
-    - https://github.com/xandone
+    - https://github.com/xandone/
 google_site_verification: xxxxx
 lang: en
 
@@ -54,5 +54,5 @@ sass:
 # Specify the author for blog posts
 author:
   name: xandone
-  url: https://github.com/xandone
+  url: https://github.com/xandone/
   email: 765478955@qq.com.com
