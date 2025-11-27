@@ -1,0 +1,65 @@
+---
+layout: post
+title: 函数式编程实战
+date: 2025-11-27 16:40:56 +0800
+tags: [编程]
+toc:  true
+---
+函数式编程实战  
+项目中，有一个需求，场景是这样的，有很多类型的数据比如：客运站，火车站，高速站等，他们都分别存在不同的数据库表中，在使用excel往这些表中导入数据的时候，需要做去重验证(假设是根据name1和name2字段去重)    
+1.首先想到的是，在每个Controller层，查询对应的表进行对比，校验是否有重复  
+由于有八九张表，写着发现除了Entity和tableName不一样，查重逻辑几乎一模一样  
+2.怎样才能把逻辑部分提取出来复用呢，这样就不用重复劳动了。问题的关键是需要提取出Entity列表中的name1和name2，组合成新的数据集合，这样就把不同类型的数据整合成一类：StationCheckBo.class  
+这里可以可以使用反射进行获取：
+```
+    protected <T, E> StationCheckResultBo checkRepeat(List<T> datas, StationCheckMapper stationCheckMapper, Class<E> clazz) {
+        List<StationCheckBo> checkBos = IntStream.range(0, datas.size()).mapToObj(i ->
+                new StationCheckBo(i, (String) ReflectUtil.getFieldValue(datas.get(i), "fieldName"), (String) ReflectUtil.getFieldValue(datas.get(i), "fieldName")))
+            .toList();
+
+        String tableName = AnnotationUtil.getAnnotationValue(clazz, TableName.class, "value");
+
+        log.info("tableName:{}", tableName);
+
+        List<StationCheckResultBo> resultBos = stationCheckMapper.batchCheckWithDynamicTable(tableName, checkBos);
+
+        log.info("resultBos:{}", resultBos);
+        if (ObjectUtil.isNotEmpty(resultBos)) {
+            return resultBos.stream().filter(resultBo -> resultBo.getCount() > 0).findFirst().orElse(null);
+        }
+        return null;
+    }
+
+```
+3.反射有两个问题，一是每个Enitiy的name1和name2的变量名不一样；二是如果datas的数据多了，反射会非常影响性能。  
+那怎么解决呢，关键还是怎样提取出集合中的name1和name2这两个值。  
+函数式接口在这里可以发挥作用，我的理解是函数式接口传递的是代码块而不是普通参数，把固定的反射代码ReflectUtil.getFieldValue替换成一个“动态的代码块”，那么执行什么由调用者决定：
+```
+    //实现
+    protected <T, E> StationCheckResultBo checkRepeat(List<T> datas, Class<E> clazz, Function<T, String> fun1, Function<T, String> fun2,
+                                                               BiFunction<List<StationCheckBo>, String, List<StationCheckResultBo>> fun3) {
+        //这里fun1.apply(datas.get(i)),执行的是调用者的代码块，相当于执行了datas.get(i).getName1()
+        List<StationCheckBo> checkBos = IntStream.range(0, datas.size()).mapToObj(i ->
+                new StationCheckBo(i, fun1.apply(datas.get(i)), fun2.apply(datas.get(i))))
+            .toList();
+
+        String tableName = AnnotationUtil.getAnnotationValue(clazz, TableName.class, "value");
+
+        log.info("tableName:{}", tableName);
+
+        List<StationCheckResultBo> resultBos = fun3.apply(checkBos, tableName);
+
+        log.info("resultBos:{}", resultBos);
+        if (ObjectUtil.isNotEmpty(resultBos)) {
+            return resultBos.stream().filter(resultBo -> resultBo.getCount() > 0).findFirst().orElse(null);
+        }
+        return null;
+    }
+	//调用
+    StationCheckResultBo checkResultBo = checkRepeatByStation(excelResult.getList(), SysBridge.class,
+            SysBridgeBo::getArea,
+            SysBridgeBo::getFacilityName,
+            (List<StationCheckBo> checkBos, String tableName) -> checkMapper.batchCheckWithDynamicTable(tableName, checkBos)
+    );	
+```
+checkRepeat中用到的一些参数无法提前拿到，就是函数式接口发挥作用的时候，fun3的思路也是这样。
