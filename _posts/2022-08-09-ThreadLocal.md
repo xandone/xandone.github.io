@@ -37,4 +37,38 @@ expungeStaleEntry(int staleSlot)
 ```
 既然强引用的情况也能达到销毁Entry的目的，为啥还要设计成弱引用，我觉得设计者的考虑是：  
 强引用的情况，每次回收前，需要先调用一个类似ThreadLocal.clear()的函数销毁Entry，再调用ThreadLocal=null。  
-弱引用情况，只需要ThreadLocal=null，在gc的时候，系统会自动回收Entry的key对应的ThreadLocal对象。这样，ThreadLocal只需要对外提供get和set接口即可，显得逻辑上更加紧凑。
+弱引用情况，只需要ThreadLocal=null，在gc的时候，系统会自动回收Entry的key对应的ThreadLocal对象。这样，ThreadLocal只需要对外提供get和set接口即可，显得逻辑上更加紧凑。  
+
+4.实战  
+在一个操作日志的处理类中，是使用AOP的方式实现的，要记录每个带有@Log注解的接口的请求时长，简化后的代码如下
+```
+    private static final ThreadLocal<StopWatch> KEY_CACHE = new ThreadLocal<>();
+
+    /**
+     * 处理请求前执行
+     */
+    @Before(value = "@annotation(controllerLog)")
+    public void doBefore(JoinPoint joinPoint, Log controllerLog) {
+        StopWatch stopWatch = new StopWatch();
+        KEY_CACHE.set(stopWatch);
+        stopWatch.start();
+    }
+
+    /**
+     * 处理完请求后执行
+     *
+     * @param joinPoint 切点
+     */
+    @AfterReturning(pointcut = "@annotation(controllerLog)", returning = "jsonResult")
+    public void doAfterReturning(JoinPoint joinPoint, Log controllerLog, Object jsonResult) {
+        StopWatch stopWatch = KEY_CACHE.get();
+        stopWatch.stop();
+        KEY_CACHE.remove();
+    }
+```
+每个接口运行在各自的线程，
+假设ThreadA调用KEY_CACHE.set(stopWatch)，  
+实际是ThreadA.ThreadLocalMap.set(stopWatch),  
+当KEY_CACHE.get()的时候，  
+实际是Thread.currentThread().ThreadLocalMap.get(stopWatch)，每个线程拿到属于自己的stopWatch，然后用stopWatch计算时长。  
+总结：ThreadLocal核心作用是为每个使用它的线程都创建一个独立的变量副本，使得每个线程都能操作属于自己的专属变量。
